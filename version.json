@@ -1,0 +1,7 @@
+{
+ "version": "1.1.0",
+ "notes": "Demo key by email, owner buttons, stop access = read-only.",
+ "android": "downloads/VKBillingPro.apk",
+ "windows": "downloads/VKBillingPro-Setup.exe",
+ "windows7": "downloads/VKBillingPro-Setup-Win7.exe"
+}

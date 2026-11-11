@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
+<title>VK Billing Pro - Owner</title>
+<style>
+:root{--pri:#0b5cd5;--ink:#14202e;--mut:#5a6b7d;--line:#d9e1ea;--bg:#f2f5f9;--bad:#b3261e;--ok:#146c2e}
+*{box-sizing:border-box}body{margin:0;font:16px/1.45 system-ui,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:#0e2a52;color:#fff;padding:12px 16px;display:flex;gap:12px;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5}
+header b{font-size:1.1rem}main{max-width:1000px;margin:0 auto;padding:14px}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
+h2{margin:0 0 10px;font-size:1.15rem}input,select{font:inherit;padding:10px 12px;border:2px solid var(--line);border-radius:10px;width:100%;min-height:44px}
+button{font:inherit;font-weight:600;min-height:44px;padding:0 16px;border-radius:10px;border:2px solid var(--line);background:#fff;cursor:pointer}
+button.p{background:var(--pri);border-color:var(--pri);color:#fff}button.d{color:var(--bad);border-color:#e8b9b5}button.s{min-height:36px;padding:0 10px;font-size:.9rem}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}.tabs button.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+table{width:100%;border-collapse:collapse;font-size:.92rem}th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--mut);font-weight:600}
+.chip{display:inline-block;padding:2px 9px;border-radius:99px;font-size:.8rem;font-weight:700;background:#e8eef7}.chip.ok{background:#dff3e5;color:var(--ok)}.chip.bad{background:#fbe3e1;color:var(--bad)}.chip.w{background:#fff3cf;color:#8a5a00}
+.muted{color:var(--mut)}.key{font:700 1.3rem ui-monospace,Consolas,monospace;letter-spacing:2px;background:#eef4ff;padding:12px;border-radius:10px;display:block;margin:8px 0;word-break:break-all}
+.scroll{overflow-x:auto}#msg{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:#14202e;color:#fff;padding:12px 18px;border-radius:12px;display:none;max-width:92vw;z-index:20}
+</style></head><body>
+<header><b>VK Billing Pro - Owner</b><span id="who"></span><button class="s" id="out" hidden>Lock</button></header>
+<main id="app"></main><div id="msg"></div>
+<script src="config.js"></script>
+<script>
+(function(){
+'use strict';
+var C=window.ADMIN_CONFIG||{}, app=document.getElementById('app'), tok=sessionStorage.getItem('adm.tok')||'', data=null, tab='users';
+function h(t,a){var e=document.createElement(t);a=a||{};for(var k in a){if(k==='text')e.textContent=a[k];else if(k==='onclick')e.onclick=a[k];else if(k==='class')e.className=a[k];else e.setAttribute(k,a[k]);}for(var i=2;i<arguments.length;i++){var c=arguments[i];if(c==null)continue;e.appendChild(typeof c==='string'?document.createTextNode(c):c);}return e;}
+function say(m,bad){var x=document.getElementById('msg');x.textContent=m;x.style.display='block';x.style.background=bad?'#b3261e':'#14202e';clearTimeout(say.t);say.t=setTimeout(function(){x.style.display='none';},4500);}
+function api(action,body){
+  if(!C.supabaseUrl){return Promise.reject(new Error('admin/config.js is not filled in yet'));}
+  return fetch(C.supabaseUrl.replace(/\/$/,'')+'/functions/v1/admin',{method:'POST',headers:Object.assign({'content-type':'application/json','apikey':C.supabaseKey,'x-admin-token':tok},/^eyJ/.test(C.supabaseKey)?{'authorization':'Bearer '+C.supabaseKey}:{}),body:JSON.stringify(Object.assign({action:action},body||{}))})
+   .then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.error||('Error '+r.status));return j;});});
+}
+function fmt(d){return d?new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}):'-';}
+function days(d){return d?Math.ceil((new Date(d)-Date.now())/86400000):null;}
+function login(){
+  document.getElementById('out').hidden=true;app.textContent='';
+  var t=h('input',{type:'password',placeholder:'Admin token',autocomplete:'off'});
+  var go=h('button',{class:'p',text:'Open',onclick:function(){tok=t.value.trim();if(!tok)return;api('list').then(function(j){sessionStorage.setItem('adm.tok',tok);data=j;show();},function(e){say(e.message,true);});}});
+  t.addEventListener('keydown',function(e){if(e.key==='Enter')go.click();});
+  app.appendChild(h('div',{class:'card'},h('h2',{text:'Owner sign-in'}),h('p',{class:'muted',text:'Paste your admin token. It is kept only until you close this tab.'}),t,h('div',{style:'height:10px'}),go));
+}
+function reload(){return api('list').then(function(j){data=j;show();},function(e){say(e.message,true);if(/token/i.test(e.message)){sessionStorage.removeItem('adm.tok');login();}});}
+function show(){
+  document.getElementById('out').hidden=false;document.getElementById('out').onclick=function(){sessionStorage.removeItem('adm.tok');tok='';login();};
+  app.textContent='';
+  var tabs=h('div',{class:'tabs'});[['users','Customers'],['keys','Keys'],['new','New key'],['mail','Emails']].forEach(function(x){tabs.appendChild(h('button',{class:tab===x[0]?'on':'',text:x[1],onclick:function(){tab=x[0];if(tab==='mail')loadMail();else show();}}));});
+  app.appendChild(tabs);
+  var u=data.users||[],paid=u.filter(function(x){return x.plan==='monthly'||x.plan==='lifetime';}).length,demo=u.filter(function(x){return x.plan==='demo';}).length;
+  if(tab==='users'){
+    var q=h('input',{placeholder:'Search name, email or mobile'}),box=h('div');
+    app.appendChild(h('div',{class:'card'},h('div',{class:'row'},h('span',{class:'chip',text:u.length+' accounts'}),h('span',{class:'chip ok',text:paid+' paid'}),h('span',{class:'chip w',text:demo+' demo'})),h('div',{style:'height:10px'}),q,h('div',{style:'height:10px'}),box));
+    var draw=function(){box.textContent='';var rows=u.filter(function(x){var z=q.value.toLowerCase();return !z||(String(x.email)+' '+(x.name||'')+' '+(x.phone||'')).toLowerCase().indexOf(z)>=0;});
+      var t=h('table'),th=h('tr');['Customer','Plan','Ends','Devices',''].forEach(function(c){th.appendChild(h('th',{text:c}));});t.appendChild(th);
+      rows.forEach(function(x){var d=days(x.expires_at),st=x.revoked?h('span',{class:'chip bad',text:'stopped'}):!x.plan?h('span',{class:'chip',text:'no plan'}):x.plan==='lifetime'?h('span',{class:'chip ok',text:'lifetime'}):h('span',{class:'chip '+(d<0?'bad':d<=5?'w':'ok'),text:x.plan}),
+        acts=h('div',{class:'row'});
+        if(x.plan&&x.plan!=='lifetime')acts.appendChild(h('button',{class:'s',text:'+30 days',onclick:function(){act('extend',{email:x.email,days:30});}}));
+        acts.appendChild(h('button',{class:'s',text:'Grant',onclick:function(){grant(x.email);}}));
+        if(x.plan)acts.appendChild(h('button',{class:'s'+(x.revoked?'':' d'),text:x.revoked?'Allow':'Stop',onclick:function(){if(x.revoked||confirm('Stop '+x.email+'? The app becomes read-only for them at the next internet check.'))act(x.revoked?'unrevoke':'revoke',{email:x.email});}}));
+        var dv=h('div',{class:'muted'});(x.devices||[]).forEach(function(v){dv.appendChild(h('div',{},(v.name||v.platform)+' '+fmt(v.last_seen)+' ',h('a',{href:'#',text:'remove',onclick:function(e){e.preventDefault();if(confirm('Remove this device?'))act('remove_device',{email:x.email,device_id:v.device_id});}})));});
+        t.appendChild(h('tr',{},h('td',{},h('b',{text:x.name||x.email}),h('div',{class:'muted',text:(x.name?x.email:'')}),h('div',{class:'muted',text:x.phone||''})),h('td',{},st),h('td',{text:x.plan==='lifetime'?'-':fmt(x.expires_at)+(d!=null&&d>=0?' ('+d+'d)':'')}),h('td',{},dv),h('td',{},acts)));});
+      if(!rows.length)box.appendChild(h('p',{class:'muted',text:'Nobody yet.'}));else box.appendChild(h('div',{class:'scroll'},t));};
+    q.oninput=draw;draw();
+  }
+  if(tab==='keys'){
+    var t2=h('table'),h2=h('tr');['Key','Plan','Status','Sent to',''].forEach(function(c){h2.appendChild(h('th',{text:c}));});t2.appendChild(h2);
+    (data.keys||[]).forEach(function(k){var a=h('div',{class:'row'});
+      a.appendChild(h('button',{class:'s',text:'Copy',onclick:function(){navigator.clipboard&&navigator.clipboard.writeText(k.key);say('Copied');}}));
+      if(k.status==='unused'){a.appendChild(h('button',{class:'s',text:'Email again',onclick:function(){var m=prompt('Send to which email?',k.email_to||'');if(m)act('resend_key',{key:k.key,email:m});}}));a.appendChild(h('button',{class:'s d',text:'Delete key',onclick:function(){if(confirm('Delete this unused key? It can never be used.'))act('revoke_key',{key:k.key});}}));}
+      if(k.status==='used'){a.appendChild(h('button',{class:'s d',text:'Delete key and stop access',onclick:function(){if(confirm('Delete this key and STOP access for '+(k.email_to||'this customer')+'? Their app becomes read-only at the next internet check. They need a new key from you to continue.'))act('revoke_key',{key:k.key});}}));}
+      t2.appendChild(h('tr',{},h('td',{text:k.key,style:'font-family:ui-monospace,Consolas,monospace'}),h('td',{text:k.plan}),h('td',{},h('span',{class:'chip '+(k.status==='used'?'ok':k.status==='revoked'?'bad':'w'),text:k.status})),h('td',{text:k.email_to||'-'}),h('td',{},a)));});
+    app.appendChild(h('div',{class:'card'},h('h2',{text:'License keys'}),h('div',{class:'scroll'},t2)));
+  }
+  if(tab==='new'){
+    var em=h('input',{type:'email',placeholder:'customer@email.com'}),pl=h('select',{},h('option',{value:'monthly',text:'Monthly (30 days, 2 devices)'}),h('option',{value:'lifetime',text:'Lifetime (3 devices)'})),nt=h('input',{placeholder:'Note (optional) - e.g. paid by UPI 11 Nov'}),res=h('div');
+    var go=h('button',{class:'p',text:'Create key and email it',onclick:function(){if(!em.value){say('Type the customer email first',true);return;}
+      api('create_key',{plan:pl.value,email:em.value,note:nt.value,send:true}).then(function(j){res.textContent='';res.appendChild(h('div',{},h('span',{class:'chip '+(j.sent?'ok':'bad'),text:j.sent?'Email sent':'Email NOT sent - copy the key and send it yourself'}),h('span',{class:'key',text:j.key})));reload2();},function(e){say(e.message,true);});}});
+    function reload2(){api('list').then(function(j){data=j;},function(){});}
+    app.appendChild(h('div',{class:'card'},h('h2',{text:'New license key'}),h('p',{class:'muted',text:'After the customer pays, create a key. It is emailed to the address you type. The customer must sign in to the app with that same email.'}),h('div',{class:'grid'},em,pl,nt),h('div',{style:'height:10px'}),go,res));
+    app.appendChild(h('div',{class:'card'},h('h2',{text:'Give a plan without a key'}),h('p',{class:'muted',text:'Use the Grant button in Customers for an account that already signed up.'}),h('button',{text:'Send me a test email',onclick:function(){api('test_email').then(function(j){say(j.ok?'Test email sent to you':'Email failed - check the Emails tab',!j.ok);},function(e){say(e.message,true);});}})));
+  }
+  if(tab==='mail'){app.appendChild(h('div',{class:'card',id:'mailbox'},h('h2',{text:'Recent emails'}),h('p',{class:'muted',text:'Loading...'})));}
+}
+function loadMail(){show();api('emails').then(function(j){var b=document.getElementById('mailbox');b.textContent='';b.appendChild(h('h2',{text:'Recent emails'}));var t=h('table'),r=h('tr');['When','To','Subject','Result'].forEach(function(c){r.appendChild(h('th',{text:c}));});t.appendChild(r);
+  (j.emails||[]).forEach(function(m){t.appendChild(h('tr',{},h('td',{text:new Date(m.created_at).toLocaleString()}),h('td',{text:m.to_email}),h('td',{text:m.subject}),h('td',{},h('span',{class:'chip '+(m.ok?'ok':'bad'),text:m.ok?'sent':'failed'}),m.error?h('div',{class:'muted',text:m.error}):null)));});
+  b.appendChild(h('div',{class:'scroll'},t));},function(e){say(e.message,true);});}
+function act(a,b){api(a,b).then(function(j){say(a==='resend_key'?(j.sent?'Email sent':'Email failed'):'Done');reload();},function(e){say(e.message,true);});}
+function grant(email){var p=prompt('Plan for '+email+'?  type: monthly, lifetime or demo','monthly');if(!p)return;p=p.trim().toLowerCase();var d=p==='monthly'?(parseInt(prompt('How many days?','30'),10)||30):7;act('grant',{email:email,plan:p,days:d});}
+if(tok)reload();else login();
+})();
+</script></body></html>

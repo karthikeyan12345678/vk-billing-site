@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
+<title>VK Billing Pro - Confirm</title>
+<style>
+:root{--pri:#0b5cd5;--ink:#14202e;--mut:#5a6b7d;--line:#d9e1ea;--bg:#f2f5f9;--bad:#b3261e;--ok:#146c2e}
+*{box-sizing:border-box}body{margin:0;font:16px/1.5 system-ui,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--ink);display:flex;min-height:100vh;align-items:center;justify-content:center;padding:16px}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px;max-width:460px;width:100%;box-shadow:0 6px 24px rgba(14,42,82,.08)}
+h1{margin:0 0 6px;font-size:1.25rem}.muted{color:var(--mut)}dl{display:grid;grid-template-columns:90px 1fr;gap:6px 10px;margin:14px 0}dt{color:var(--mut)}dd{margin:0;font-weight:600;word-break:break-word}
+.act{padding:12px;border-radius:10px;background:#eef4ff;font-weight:700;margin:10px 0}.act.stop{background:#fbe3e1;color:var(--bad)}
+button{font:inherit;font-weight:700;min-height:50px;width:100%;border-radius:12px;border:0;background:var(--pri);color:#fff;cursor:pointer}button.stop{background:var(--bad)}button[disabled]{opacity:.6}
+.msg{padding:12px;border-radius:10px;margin-top:12px}.msg.ok{background:#dff3e5;color:var(--ok)}.msg.bad{background:#fbe3e1;color:var(--bad)}
+</style></head><body>
+<div class="card" id="c"><h1>VK Billing Pro</h1><p class="muted">Loading...</p></div>
+<script src="../admin/config.js"></script>
+<script>
+(function () {
+  'use strict';
+  var C = window.ADMIN_CONFIG || {}, box = document.getElementById('c'), t = new URLSearchParams(location.search).get('t') || '';
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function call(body) {
+    return fetch(String(C.supabaseUrl || '').replace(/\/$/, '') + '/functions/v1/owner-action', { method: 'POST', headers: { 'content-type': 'application/json', apikey: C.supabaseKey || '' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || ('Error ' + r.status)); return j; }); });
+  }
+  function fail(m) { box.textContent = ''; box.appendChild(el('h1', '', 'VK Billing Pro')); box.appendChild(el('div', 'msg bad', m)); }
+  if (!t || !C.supabaseUrl) { fail(!t ? 'This link is incomplete. Open the button in the email again.' : 'The site is not set up yet (admin/config.js).'); return; }
+  call({ t: t }).then(function (j) {
+    box.textContent = ''; box.appendChild(el('h1', '', 'Please confirm')); box.appendChild(el('p', 'muted', 'Nothing happens until you press the button.'));
+    box.appendChild(el('div', 'act' + (j.action === 'stop' ? ' stop' : ''), j.label));
+    var dl = el('dl'); [['Name', j.name || '-'], ['Email', j.email], ['Mobile', j.phone || '-'], ['Now', j.plan]].forEach(function (r) { dl.appendChild(el('dt', '', r[0])); dl.appendChild(el('dd', '', r[1])); }); box.appendChild(dl);
+    var b = el('button', j.action === 'stop' ? 'stop' : '', 'Confirm'); box.appendChild(b);
+    b.addEventListener('click', function () {
+      b.disabled = true; b.textContent = 'Please wait...';
+      call({ t: t, confirm: true }).then(function (r) { b.remove(); box.appendChild(el('div', 'msg ok', r.message || 'Done.')); }, function (e) { b.disabled = false; b.textContent = 'Confirm'; box.appendChild(el('div', 'msg bad', e.message)); });
+    });
+  }, function (e) { fail(e.message); });
+})();
+</script></body></html>
